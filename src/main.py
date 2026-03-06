@@ -241,7 +241,7 @@ def http_get(url: str) -> tuple:
                 log.warning("403 for %s", url)
                 return ("", 403)
             r.raise_for_status()
-            r.encoding = r.apparent_encoding or "utf-8"
+            r.encoding = "utf-8"
             return (r.text, r.status_code)
         except Exception as e:
             last_err = e
@@ -615,7 +615,6 @@ def build_full_message(title, url, project_text, rss_desc, used_fallback, source
 
     questions = build_questions(project_text)
     need = build_need_from_customer(project_text)
-    reply = build_reply_draft(title, url, verdict, conf)
 
     msg = [
         f"📌 {title}",
@@ -642,7 +641,9 @@ def build_full_message(title, url, project_text, rss_desc, used_fallback, source
             "", "⚠️ Риски"]
     for x in risks[:5]:
         msg.append(f"— {x}")
-    msg += ["", "✉️ Отклик (черновик)", reply]
+    if verdict in ("✅ БРАТЬ", "🟡 МОЖНО СМОТРЕТЬ"):
+        reply = build_reply_draft(title, url, verdict, conf)
+        msg += ["", "✉️ Отклик (черновик)", reply]
 
     return "\n".join(msg).strip(), verdict
 
