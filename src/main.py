@@ -547,6 +547,42 @@ def is_relevant(verdict: str) -> bool:
     return verdict in ("✅ БРАТЬ", "🟡 МОЖНО СМОТРЕТЬ")
 
 
+def claude_analyze(title: str, text: str) -> bool:
+    """
+    Отправляет заголовок и текст заказа в Anthropic API.
+    Возвращает True если заказ подходит для Python/backend разработчика.
+    """
+    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        log.warning("ANTHROPIC_API_KEY не задан — claude_analyze пропущен, заказ разрешён")
+        return True
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        prompt = (
+            f"Заголовок заказа: {title}\n\n"
+            f"Описание заказа:\n{text[:2000]}\n\n"
+            "Подходит ли этот заказ для Python/backend разработчика? "
+            "Критерии: Python, парсинг, автоматизация, боты, API, FastAPI/Flask/Django, "
+            "SQL/БД, Linux/VPS/DevOps, Node.js/backend, AI/LLM интеграции.\n"
+            "Не подходит: дизайн, логотипы, SMM, копирайтинг, SEO, видеомонтаж, "
+            "вёрстка (без backend), WordPress/Bitrix без кода.\n"
+            "Ответь строго одним словом: YES или NO."
+        )
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=10,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        answer = message.content[0].text.strip().upper()
+        result = answer.startswith("YES")
+        log.info("Claude: %s | %s", "YES" if result else "NO", title[:80])
+        return result
+    except Exception as e:
+        log.warning("claude_analyze ошибка: %s — заказ разрешён", e)
+        return True
+
+
 # ── СБОРКА СООБЩЕНИЯ ──────────────────────────────────────────────────────────
 
 def build_full_message(title, url, project_text, rss_desc, used_fallback, source_label):
@@ -676,19 +712,21 @@ def main():
                     used_fallback = True
                     project_text = rss_desc or title
 
+                if not claude_analyze(title, project_text):
+                    log.info("Claude: нерелевантно, пропускаем | %s", title[:90])
+                    mark_processed(conn, pid, link, title)
+                    continue
+
                 message, verdict = build_full_message(
                     title, link, project_text, rss_desc, used_fallback, source_label
                 )
 
-                if is_relevant(verdict):
-                    ok = tg_send(message)
-                    if not ok:
-                        log.warning("Telegram не доставил, пробуем email")
-                        email_send(message)
-                    log.info("Send: %s | ok=%s | %s", verdict, ok, title[:90])
-                    sent += 1
-                else:
-                    log.info("Skip: %s | %s", verdict, title[:90])
+                ok = tg_send(message)
+                if not ok:
+                    log.warning("Telegram не доставил, пробуем email")
+                    email_send(message)
+                log.info("Send: %s | ok=%s | %s", verdict, ok, title[:90])
+                sent += 1
 
                 mark_processed(conn, pid, link, title)
 
