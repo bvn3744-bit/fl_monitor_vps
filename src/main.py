@@ -25,6 +25,9 @@ import datetime as dt
 import xml.etree.ElementTree as ET
 from urllib.parse import urlparse, parse_qs
 
+import smtplib
+from email.mime.text import MIMEText
+
 import requests
 
 
@@ -109,7 +112,7 @@ ANTI_KEYWORDS = [
     "раскачать", "маркетолог", "спам", "накрутка",
     "modx", "wordpress", "bitrix", "joomla", "opencart", "тильда", "wix",
     "постинг", "ведение канала", "контент план", "администратор канала", "настройка телеграм",
-"анимац","эмодзи","стикер","gif","power bi","sharepoint","1c","битрикс","ms project","автосервис",]
+]
 
 HARD_ANTI_KEYWORDS = {
     "логотип", "фирменный стиль", "брендинг", "дизайн", "figma", "фигма",
@@ -506,6 +509,40 @@ def tg_send(text: str) -> bool:
     return ok_all
 
 
+def email_send(text: str) -> bool:
+    to_addr = os.getenv("EMAIL_TO", "").strip()
+    from_addr = os.getenv("EMAIL_FROM", "").strip()
+    password = os.getenv("EMAIL_PASSWORD", "").strip()
+    smtp_host = os.getenv("EMAIL_SMTP", "").strip()
+    smtp_port = int(os.getenv("EMAIL_PORT", "465"))
+
+    if not all([to_addr, from_addr, password, smtp_host]):
+        log.error("EMAIL_TO / EMAIL_FROM / EMAIL_PASSWORD / EMAIL_SMTP не заданы (проверь .env)")
+        return False
+
+    try:
+        msg = MIMEText(text, "plain", "utf-8")
+        msg["Subject"] = "FL Monitor: новый заказ"
+        msg["From"] = from_addr
+        msg["To"] = to_addr
+
+        if smtp_port == 587:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as server:
+                server.starttls()
+                server.login(from_addr, password)
+                server.sendmail(from_addr, to_addr, msg.as_bytes())
+        else:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=30) as server:
+                server.login(from_addr, password)
+                server.sendmail(from_addr, to_addr, msg.as_bytes())
+
+        log.info("Email отправлен на %s", to_addr)
+        return True
+    except Exception as e:
+        log.warning("Email exception: %s", e)
+        return False
+
+
 def is_relevant(verdict: str) -> bool:
     return verdict in ("✅ БРАТЬ", "🟡 МОЖНО СМОТРЕТЬ")
 
@@ -645,6 +682,9 @@ def main():
 
                 if is_relevant(verdict):
                     ok = tg_send(message)
+                    if not ok:
+                        log.warning("Telegram не доставил, пробуем email")
+                        email_send(message)
                     log.info("Send: %s | ok=%s | %s", verdict, ok, title[:90])
                     sent += 1
                 else:
