@@ -180,7 +180,9 @@ class EmailSendTests(unittest.TestCase):
         self.assertEqual("sendmail", events[4][0])
         self.assertEqual("monitor@example.test", events[4][1])
         self.assertEqual("client@example.test", events[4][2])
-        self.assertIn(b"FL Monitor", events[4][3])
+        self.assertIn(b"Subject:", events[4][3])
+        self.assertIn(b"From: monitor@example.test", events[4][3])
+        self.assertIn(b"To: client@example.test", events[4][3])
         self.assertEqual(("exit", None), events[5])
         smtp_ssl.assert_not_called()
 
