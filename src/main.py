@@ -294,7 +294,9 @@ def fetch_rss_items() -> list:
         if not text:
             return []
         root = ET.fromstring(text.encode("utf-8", errors="replace"))
-        channel = root.find("channel") or root.find(".//channel")
+        channel = root.find("channel")
+        if channel is None:
+            channel = root.find(".//channel")
         if channel is None:
             return []
         items = []
