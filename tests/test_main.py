@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import importlib.util
 import logging
-import os
 import sys
 import unittest
 from pathlib import Path
@@ -23,7 +22,7 @@ main = load_main_module()
 
 class KeywordMatchingTests(unittest.TestCase):
     def test_whole_word_keywords_do_not_match_inside_larger_words(self):
-        text = "Нужен premium лендинг с fluid ui-kit и prefix api."
+        text = "Нужен premium лендинг с fluid layout и prefix API."
 
         hits = main.count_matches(text, ["ui", "api"])
 
@@ -113,7 +112,7 @@ class EmailSendTests(unittest.TestCase):
         return self.env.get(key, default)
 
     def test_missing_email_configuration_returns_false(self):
-        with mock.patch.object(main.os, "getenv", return_value=""):
+        with mock.patch.dict(main.os.environ, {}, clear=True):
             self.assertFalse(main.email_send("message"))
 
     def test_port_587_uses_starttls_smtp(self):
