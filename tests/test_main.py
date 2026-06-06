@@ -2,6 +2,8 @@ import importlib.util
 import logging
 import sys
 import types
+from email import message_from_bytes
+from email.header import decode_header, make_header
 from pathlib import Path
 import unittest
 from unittest.mock import Mock, patch
@@ -116,7 +118,11 @@ class EmailTests(unittest.TestCase):
         server.login.assert_called_once_with("from@example.test", "secret")
         server.sendmail.assert_called_once()
         sent_message = server.sendmail.call_args.args[2]
-        self.assertIn(b"Subject: FL Monitor:", sent_message)
+        parsed_message = message_from_bytes(sent_message)
+        subject = str(make_header(decode_header(parsed_message["Subject"])))
+        self.assertEqual(subject, "FL Monitor: новый заказ")
+        self.assertEqual(parsed_message["From"], "from@example.test")
+        self.assertEqual(parsed_message["To"], "to@example.test")
 
     def test_email_send_uses_starttls_for_submission_port(self):
         server = Mock()
