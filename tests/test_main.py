@@ -1,4 +1,5 @@
 import importlib.util
+import logging
 import os
 import sys
 import unittest
@@ -10,7 +11,7 @@ def load_main_module():
     module_path = os.path.join(os.path.dirname(__file__), "..", "src", "main.py")
     spec = importlib.util.spec_from_file_location("fl_monitor_main", module_path)
     module = importlib.util.module_from_spec(spec)
-    with mock.patch("logging.FileHandler", return_value=mock.Mock()):
+    with mock.patch("logging.FileHandler", return_value=logging.NullHandler()):
         spec.loader.exec_module(module)
     return module
 
