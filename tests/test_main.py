@@ -1,4 +1,5 @@
 import importlib.util
+import logging
 import os
 from pathlib import Path
 import sys
@@ -20,7 +21,7 @@ def load_app():
     fake_dotenv = types.SimpleNamespace(load_dotenv=lambda *_args, **_kwargs: None)
     with mock.patch.dict(os.environ, {}, clear=True):
         with mock.patch.dict(sys.modules, {"dotenv": fake_dotenv}):
-            with mock.patch("logging.FileHandler", return_value=mock.Mock()):
+            with mock.patch("logging.FileHandler", return_value=logging.NullHandler()):
                 spec.loader.exec_module(app)
 
     return app
