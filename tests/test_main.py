@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 
-class StopLoop(Exception):
+class StopLoop(BaseException):
     pass
 
 
