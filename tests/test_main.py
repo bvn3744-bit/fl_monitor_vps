@@ -174,6 +174,11 @@ class MainLoopTests(unittest.TestCase):
 
     def test_main_marks_claude_rejected_project_without_customer_notification(self):
         conn = processed_connection()
+        project_text = (
+            "Python API backend task with enough detail to represent a real project page. "
+            "It includes integrations, a small database workflow, deployment notes, and "
+            "clear deliverables so the monitor should not fall back to the RSS summary."
+        )
         item = {
             "title": "Backend automation",
             "link": "https://www.fl.ru/projects/777/backend-automation/",
@@ -185,7 +190,7 @@ class MainLoopTests(unittest.TestCase):
             patch.object(self.main, "fetch_projects_page", return_value=[item]),
             patch.object(self.main, "fetch_rss_items") as fetch_rss_items,
             patch.object(self.main, "http_get", return_value=("<html>project</html>", 200)),
-            patch.object(self.main, "try_extract_project_text", return_value="Python API backend task"),
+            patch.object(self.main, "try_extract_project_text", return_value=project_text),
             patch.object(self.main, "claude_analyze", return_value=False) as claude_analyze,
             patch.object(self.main, "build_full_message") as build_full_message,
             patch.object(self.main, "tg_send", return_value=True) as tg_send,
@@ -195,7 +200,7 @@ class MainLoopTests(unittest.TestCase):
             with self.assertRaises(KeyboardInterrupt):
                 self.main.main()
 
-        claude_analyze.assert_called_once_with("Backend automation", "Python API backend task")
+        claude_analyze.assert_called_once_with("Backend automation", project_text)
         build_full_message.assert_not_called()
         fetch_rss_items.assert_not_called()
         self.assertEqual(1, tg_send.call_count, "only startup notification should be sent")
